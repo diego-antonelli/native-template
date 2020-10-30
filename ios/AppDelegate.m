@@ -3,6 +3,10 @@
 #import "MendixNative/MendixNative.h"
 #import "IQKeyboardManager/IQKeyboardManager.h"
 #import "SplashScreenPresenter.h"
+// Required for push and local notifications
+#import <Firebase.h>
+#import <UserNotifications/UserNotifications.h>
+#import <RNCPushNotificationIOS.h>
 
 @implementation AppDelegate
 
@@ -12,8 +16,17 @@
   [MendixAppDelegate application:application didFinishLaunchingWithOptions:launchOptions];
   [self setupUI];
   
+  // Required for Local Notifications
+  UNUserNotificationCenter *center =
+        [UNUserNotificationCenter currentNotificationCenter];
+    center.delegate = self;
+  
   NSBundle *mainBundle = [NSBundle mainBundle];
   NSString *targetName = [mainBundle objectForInfoDictionaryKey:@"TargetName"] ?: @"";
+  
+  if ([FIRApp defaultApp] == nil) {
+      [FIRApp configure];
+  }
 
   if ([targetName  isEqual: @"dev"]) {
     IQKeyboardManager.sharedManager.enable = NO;
@@ -54,8 +67,14 @@
   } else {
     [self showUnrecoverableDialogWithTitle:@"No Mendix bundle found" message:@"Missing the Mendix app bundle. Make sure that the index.ios.bundle file is available in ios/NativeTemplate/Bundle folder. If building locally consult the documentation on how to generate a bundle from your project."];
   }
-
+  
   return YES;
+}
+
+//Called when a notification is delivered to a foreground app.
+-(void)userNotificationCenter:(UNUserNotificationCenter *)center willPresentNotification:(UNNotification *)notification withCompletionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler
+{
+  completionHandler(UNNotificationPresentationOptionSound | UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionBadge);
 }
 
 - (void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
@@ -96,5 +115,12 @@ fetchCompletionHandler:(nonnull void (^)(UIBackgroundFetchResult))completionHand
   if (@available(iOS 13.4, *)) {
     [UIDatePicker appearance].preferredDatePickerStyle = UIDatePickerStyleWheels;
   }
+}
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+    didReceiveNotificationResponse:(UNNotificationResponse *)response
+             withCompletionHandler:(void (^)(void))completionHandler {
+  [RNCPushNotificationIOS didReceiveNotificationResponse:response];
+  completionHandler();
 }
 @end
